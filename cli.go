@@ -6,7 +6,7 @@ import (
 )
 
 type config struct {
-	WorkDir string
+	RepoDir string
 }
 
 var logger = zlog.New()
@@ -20,15 +20,16 @@ func Run(argv []string) error {
 		Usage: "Dump Firebase Auth users",
 		Commands: []*cli.Command{
 			cmdDump(cfg),
+			cmdLoad(cfg),
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "work-dir",
-				Usage:       "Working directory",
-				Value:       "works",
-				Aliases:     []string{"w"},
-				EnvVars:     []string{"FBDUMP_WORK_DIR"},
-				Destination: &cfg.WorkDir,
+				Name:        "repo-dir",
+				Usage:       "Repository directory",
+				Value:       "repo",
+				Aliases:     []string{"r"},
+				EnvVars:     []string{"FBDUMP_REPO_DIR"},
+				Destination: &cfg.RepoDir,
 			},
 			&cli.StringFlag{
 				Name:        "log-level",

@@ -49,7 +49,7 @@ func cmdDump(cfg *config) *cli.Command {
 				return err
 			}
 
-			repo := NewRepository(cfg.WorkDir, depth)
+			repo := NewRepository(cfg.RepoDir, depth)
 
 			if err := dump(ctx.Context, state, repo, projectID); err != nil {
 				return err

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -58,4 +59,45 @@ func (x *Repository) Put(token PageToken, users []*auth.ExportedUserRecord) erro
 	logger.With("path", fpath).Debug("saved user records")
 
 	return nil
+}
+
+func (x *Repository) Load() (chan *auth.ExportedUserRecord, chan error) {
+	recCh := make(chan *auth.ExportedUserRecord)
+	errCh := make(chan error)
+
+	go func() {
+		defer close(recCh)
+		defer close(errCh)
+
+		if err := filepath.WalkDir(x.baseDir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return goerr.Wrap(err).With("path", path)
+			}
+			if d.IsDir() {
+				return nil
+			}
+
+			users := []*auth.ExportedUserRecord{}
+			fd, err := os.Open(path)
+			if err != nil {
+				return goerr.Wrap(err, "file open").With("path", path)
+			}
+			defer fd.Close()
+
+			if err := json.NewDecoder(fd).Decode(&users); err != nil {
+				return err
+			}
+
+			for i := range users {
+				recCh <- users[i]
+			}
+
+			return nil
+		}); err != nil {
+			errCh <- err
+			return
+		}
+	}()
+
+	return recCh, errCh
 }
