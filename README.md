@@ -4,6 +4,7 @@
 
 - Can not retry if aborted before completed
 - Can output only one large file that is breakable by abort
+- Will crash after export about tens of millions of users by stack overflow of recursive call.
 
 `fbdump` keeps dumping state for retry when aborted and can start again from aborted point. Additionally, the tool splits exported user records to multiple files for avoiding to break a file by abort.
 
