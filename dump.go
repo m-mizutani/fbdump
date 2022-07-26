@@ -77,7 +77,7 @@ func dump(ctx context.Context, state *State, repo *Repository, projectID string)
 	iter := client.Users(ctx, "")
 	pager := iterator.NewPager(iter, firebaseListUsersLimit, string(state.PageToken))
 
-	for {
+	for !state.Completed {
 		var users []*auth.ExportedUserRecord
 		nextToken, err := pager.NextPage(&users)
 		if err != nil {

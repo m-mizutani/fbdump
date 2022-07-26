@@ -12,6 +12,7 @@ import (
 type State struct {
 	PageToken     PageToken `json:"page_token"`
 	LastUpdatedAt time.Time `json:"last_updated_at"`
+	Completed     bool      `json:"completed"`
 
 	path string
 }
@@ -60,6 +61,9 @@ func (x *State) Update(token PageToken) error {
 
 	x.PageToken = token
 	x.LastUpdatedAt = time.Now()
+	if token == "" {
+		x.Completed = true
+	}
 
 	if err := json.NewEncoder(f).Encode(x); err != nil {
 		return goerr.Wrap(err, "failed to update state")

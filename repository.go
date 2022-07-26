@@ -32,6 +32,9 @@ func (x *Repository) Put(token PageToken, users []*auth.ExportedUserRecord) erro
 		return nil
 	}
 	if len(token) == 0 { // use UID of head of users if token is empty (first request)
+		if err := os.MkdirAll(x.baseDir, 0755); err != nil {
+			return goerr.Wrap(err)
+		}
 		fpath = filepath.Join(x.baseDir, "head.json")
 	} else {
 		dirs := []string{x.baseDir}
