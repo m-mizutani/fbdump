@@ -6,12 +6,17 @@ import (
 	"io"
 	"os"
 
+	"firebase.google.com/go/v4/auth"
 	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/gots/slice"
 	"github.com/urfave/cli/v2"
 )
 
 func cmdLoad(cfg *config) *cli.Command {
-	var output string
+	var (
+		output    string
+		providers cli.StringSlice
+	)
 	return &cli.Command{
 		Name:    "load",
 		Aliases: []string{"l"},
@@ -23,6 +28,12 @@ func cmdLoad(cfg *config) *cli.Command {
 				Value:       "-",
 				EnvVars:     []string{"FBDUMP_OUT"},
 				Destination: &output,
+			},
+			&cli.StringSliceFlag{
+				Name:        "provider",
+				Aliases:     []string{"p"},
+				Usage:       "Specify provider(s) to filter output [password|google.com|apple.com|...]",
+				Destination: &providers,
 			},
 		},
 		Action: func(ctx *cli.Context) error {
@@ -38,7 +49,7 @@ func cmdLoad(cfg *config) *cli.Command {
 				out = fd
 			}
 
-			if err := load(ctx.Context, repo, out); err != nil {
+			if err := load(ctx.Context, repo, providers.Value(), out); err != nil {
 				return err
 			}
 
@@ -47,7 +58,20 @@ func cmdLoad(cfg *config) *cli.Command {
 	}
 }
 
-func load(ctx context.Context, repo *Repository, out io.WriteCloser) error {
+func matchProvider(providers []string, userInfo []*auth.UserInfo) bool {
+	if len(providers) == 0 {
+		return true // path through if providers is not defined
+	}
+
+	for _, info := range userInfo {
+		if slice.Contains(providers, info.ProviderID) {
+			return true
+		}
+	}
+	return false
+}
+
+func load(ctx context.Context, repo *Repository, providers []string, out io.WriteCloser) error {
 	encoder := json.NewEncoder(out)
 
 	recCh, errCh := repo.Load()
@@ -57,6 +81,11 @@ func load(ctx context.Context, repo *Repository, out io.WriteCloser) error {
 			if record == nil {
 				return nil
 			}
+
+			if !matchProvider(providers, record.ProviderUserInfo) {
+				break
+			}
+
 			if err := encoder.Encode(record); err != nil {
 				return goerr.Wrap(err, "encode record")
 			}

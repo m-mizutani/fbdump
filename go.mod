@@ -5,6 +5,7 @@ go 1.18
 require (
 	firebase.google.com/go/v4 v4.8.0
 	github.com/m-mizutani/goerr v0.1.7
+	github.com/m-mizutani/gots v0.0.0-20220724034137-07fb246ce3be
 	github.com/m-mizutani/zlog v0.3.2
 	github.com/stretchr/testify v1.7.1
 	github.com/urfave/cli/v2 v2.11.1
