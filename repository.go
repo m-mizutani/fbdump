@@ -1,7 +1,9 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/json"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -35,7 +37,7 @@ func (x *Repository) Put(token PageToken, users []*auth.ExportedUserRecord) erro
 		if err := os.MkdirAll(x.baseDir, 0755); err != nil {
 			return goerr.Wrap(err)
 		}
-		fpath = filepath.Join(x.baseDir, "head.json")
+		fpath = filepath.Join(x.baseDir, "head.json.gz")
 	} else {
 		dirs := []string{x.baseDir}
 		for i := 0; i < len(token) && i < x.depth; i++ {
@@ -46,7 +48,7 @@ func (x *Repository) Put(token PageToken, users []*auth.ExportedUserRecord) erro
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return goerr.Wrap(err)
 		}
-		fname := token + ".json"
+		fname := token + ".json.gz"
 		fpath = filepath.Join(dir, filepath.Clean(string(fname)))
 	}
 
@@ -54,9 +56,20 @@ func (x *Repository) Put(token PageToken, users []*auth.ExportedUserRecord) erro
 	if err != nil {
 		return goerr.Wrap(err)
 	}
-	defer fd.Close()
+	defer func() {
+		if err := fd.Close(); err != nil {
+			logger.Err(err).Warn("failed to close file writer")
+		}
+	}()
 
-	if err := json.NewEncoder(fd).Encode(users); err != nil {
+	w := gzip.NewWriter(fd)
+	defer func() {
+		if err := w.Close(); err != nil {
+			logger.Err(err).Warn("failed to close gzip writer")
+		}
+	}()
+
+	if err := json.NewEncoder(w).Encode(users); err != nil {
 		return goerr.Wrap(err, "encode exported users to json")
 	}
 	logger.With("path", fpath).Debug("saved user records")
@@ -87,8 +100,17 @@ func (x *Repository) Load() (chan *auth.ExportedUserRecord, chan error) {
 			}
 			defer fd.Close()
 
-			if err := json.NewDecoder(fd).Decode(&users); err != nil {
-				return err
+			var rd io.Reader = fd
+			if filepath.Ext(path) == ".gz" {
+				gz, err := gzip.NewReader(fd)
+				if err != nil {
+					return goerr.Wrap(err, "new gzip reader")
+				}
+				rd = gz
+			}
+
+			if err := json.NewDecoder(rd).Decode(&users); err != nil {
+				return goerr.Wrap(err)
 			}
 
 			for i := range users {
